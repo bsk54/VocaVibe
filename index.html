@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!--**********************************************************************************************************-->
+  <!--************************************************ cSpeak **************************************************-->
+  <!--******************************************** Version 1.00 ************************************************-->
+  <!--******************************************** July 2, 2025 ************************************************-->
+  <!--**********************************************************************************************************-->
+  <!-------------------------------------------------------------------------------------------------------------->
+  <!------------------------------------ Code by: Bernd Sebastian Kamps ------------------------------------------>
+  <!-------------------------------------------------------------------------------------------------------------->
+  <!-- Description: cSpeak is a single-page web application designed for studying vocabulary in any language.   -->
+  <!-- After loading a list of entries separated by # or TAB (two columns for most languages; three columns     -->
+  <!-- for Chinese—Hanzi, Pinyin, and translation), each entry appears as a numbered card displaying only the   -->
+  <!-- word or phrase in your target language. An arrow in the corner toggles the card open or closed to reveal -->
+  <!-- or hide the definition. Every time you toggle, the word’s pronunciation plays. Clicking anywhere else on -->
+  <!-- the card simply pronounces the word without changing its open state. You can manage multiple vocabulary  -->
+  <!-- lists via the dropdown menu, switch speech languages in the ☰ menu, and save, restore, or export your    -->
+  <!-- data. All of this is backed by localStorage.                                                             -->
+  <!--**********************************************************************************************************-->
+  <!-- Repository: https://github.com/bsk54/cSpeak.git ----------------------------------------------------------->
+  <!-- Web site:   https://aiopop.com/cSpeak --------------------------------------------------------------------->
+  <!--**********************************************************************************************************-->
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cSpeak</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+    /* —— adjustable variables —— */
+    :root {
+      --card-padding: 3px;
+      --space-hanzi-pinyin: 0.2rem;
+      --space-pinyin-def: 0.25rem;
+      --font-hanzi-size: 1.4rem;
+      --font-hanzi-color: #2c3e50;
+      --font-pinyin-size: 1rem;
+      --font-pinyin-color: #7f8c8d;
+      --font-def-size: 0.875rem;
+      --font-def-color: #95a5a6;
+      --card-gap: 0.5rem;    /* distance between each card */
+      --card-num-font-size: .7rem;
+      --card-num-color: #555;
+      --card-num-margin-right: 0.5rem;
+    }
+
+    body { font-family: 'Montserrat', sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: #333; }
+    .container { max-width: 600px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: visible !important; }
+    header, nav { background: #4a90e2; color: #fff; }
+    header { padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: 600; }
+    nav { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; position: relative; }
+    nav a { color: #fff; font-weight: 500; text-decoration: none; margin-right: 0.5rem; }
+    nav a:hover { background: rgba(255,255,255,0.2); border-radius: 4px; padding: 0.25rem; }
+    #navListSelect { margin-left: 1rem; padding: 0.25rem; border-radius: 4px; border: none; max-width: 150px; }
+
+    .menu-btn { font-size: 1.5rem; cursor: pointer; border: none; background: none; color: #fff; }
+    .menu-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 1rem;
+      width: 200px;
+      padding: 0.5rem;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      max-height: 80vh !important;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .menu-dropdown button,
+    .menu-dropdown select {
+      display: block;
+      width: 100%;
+      margin-bottom: 0.5rem;
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.25rem 0;
+    }
+    .menu-dropdown button:hover,
+    .menu-dropdown select:focus { background: #f0f0f0; }
+    .menu-dropdown select { padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px; }
+    .menu-dropdown hr {
+      border: none;
+      border-top: 1px solid #ddd;
+      margin: 0.5rem 0;
+    }
+
+    #loader { padding: 1.5rem; position: relative; }
+    #rawInput { width: 100%; height: 120px; box-sizing: border-box; padding: 0.75rem; font-family: monospace; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
+    button.main-action, #closeLoader { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 4px; background: #4a90e2; color: #fff; transition: background 0.2s; }
+    button.main-action:hover, #closeLoader:hover { background: #357ab8; }
+
+    .radio-group { margin-bottom: 1rem; }
+    .radio-group label { margin-right: 1rem; font-weight: 500; }
+
+    #listName { padding: 1rem; font-size: 1.2rem; font-weight: 500; border-bottom: 1px solid #eee; background: #fafafa; }
+    main { padding: 1rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: var(--card-padding);
+      margin-bottom: var(--card-gap);
+      cursor: pointer;
+      transition: transform 0.1s;
+      position: relative;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card.flipped { background: #f9f9f9; }
+
+    .hanzi {
+      font-size: var(--font-hanzi-size);
+      color: var(--font-hanzi-color);
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .card em {
+      display: block;
+      margin-top: var(--space-hanzi-pinyin);
+      font-size: var(--font-pinyin-size);
+      color: var(--font-pinyin-color);
+      font-style: normal;
+    }
+
+    .card small {
+      display: block;
+      margin-top: var(--space-pinyin-def);
+      font-size: var(--font-def-size);
+      color: var(--font-def-color);
+    }
+
+    .toggle-btn {
+      position: absolute;
+      top: .1rem;
+      right: 1rem;
+      width: 30px;
+      height: 30px;
+      background: #fff;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      color: #4a90e2;
+      cursor: pointer;
+    }
+    .toggle-btn:hover { background: #f0f0f0; }
+
+    #closeLoader { position: absolute; top: 1rem; right: 1rem; background: transparent; color: #333; border: 1px solid #ccc; }
+    #closeLoader:hover { background: #ccc; color: #000; }
+
+    .card-number {
+      font-size: var(--card-num-font-size);
+      color: var(--card-num-color);
+      margin-right: var(--card-num-margin-right);
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>cSpeak</header>
+
+    <section id="loader">
+      <button id="closeLoader">Close</button>
+      <p>Paste your words (2 or 3 columns) separated by TAB or #:<br>
+         <small>Hanzi TAB/# Pinyin [TAB/# Definition]</small></p>
+      <div class="radio-group">
+        <label><input type="radio" name="loadMode" value="new" checked> Create New List</label>
+        <label><input type="radio" name="loadMode" value="add"> Add to Current List</label>
+      </div>
+      <textarea id="rawInput"></textarea>
+      <button id="loadBtn" class="main-action">Execute</button>
+    </section>
+
+    <nav>
+      <div>
+        <a href="#/cards">Cards</a>
+        <a href="#/quiz">Quiz</a>
+        <select id="navListSelect"></select>
+      </div>
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <div class="menu-dropdown" id="menuDropdown">
+        <button id="loadNewBtn">New List</button>
+        <button id="renameBtn">Rename</button>
+        <button id="deleteBtn">Delete</button>
+        <select id="langSelect"></select>
+        <hr>
+        <button id="saveFileBtn">Save to file</button>
+        <button id="restoreFileBtn">Restore from file</button>
+        <button id="exportBtn">Export</button>
+        <hr>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </nav>
+
+    <div id="listName"></div>
+    <main id="app"></main>
+  </div>
+
+  <script>
+    // ─── Master language list ───
+    const availableLanguages = [
+      { label: 'Chinese', code: 'zh-CN' },
+      { label: 'English', code: 'en-US' },
+      { label: 'French', code: 'fr-FR' },
+      { label: 'Italian', code: 'it-IT' },
+      { label: 'Portuguese', code: 'pt-PT' },
+      { label: 'Spanish', code: 'es-ES' },
+      { label: '----------', code: '' },
+      { label: 'Arabic', code: 'ar-EG' },
+      { label: 'Brazilian', code: 'pt-BR' },
+      { label: 'Bulgarian', code: 'bg-BG' },
+      { label: 'Czech', code: 'cs-CZ' },
+      { label: 'Danish', code: 'da-DK' },
+      { label: 'Dutch', code: 'nl-NL' },
+      { label: 'Estonian', code: 'et-EE' },
+      { label: 'Finnish', code: 'fi-FI' },
+      { label: 'German', code: 'de-DE' },
+      { label: 'Greek', code: 'el-GR' },
+      { label: 'Hindi', code: 'hi-IN' },
+      { label: 'Hungarian', code: 'hu-HU' },
+      { label: 'Indonesian', code: 'id-ID' },
+      { label: 'Japanese', code: 'ja-JP' },
+      { label: 'Korean', code: 'ko-KR' },
+      { label: 'Latvian', code: 'lv-LV' },
+      { label: 'Lithuanian', code: 'lt-LT' },
+      { label: 'Norwegian', code: 'no-NO' },
+      { label: 'Polish', code: 'pl-PL' },
+      { label: 'Romanian', code: 'ro-RO' },
+      { label: 'Russian', code: 'ru-RU' },
+      { label: 'Slovak', code: 'sk-SK' },
+      { label: 'Slovenian', code: 'sl-SI' },
+      { label: 'Swedish', code: 'sv-SE' },
+      { label: 'Turkish', code: 'tr-TR' },
+      { label: 'Ukrainian', code: 'uk-UA' },
+    ];
+
+    // Unified storage under one key
+    function loadStore() {
+      let js = localStorage.getItem('CSpeakData');
+      if (!js) {
+        // migrate old lists
+        const oldIdx = JSON.parse(localStorage.getItem('voc_lists') || '[]');
+        const lists = {};
+        oldIdx.forEach(it => {
+          const rec = localStorage.getItem('voc_' + it.id);
+          if (rec) {
+            const o = JSON.parse(rec);
+            lists[it.id] = { trueName: o.trueName, words: o.words };
+            localStorage.removeItem('voc_' + it.id);
+          }
+        });
+        localStorage.removeItem('voc_lists');
+        js = JSON.stringify({
+          lists,
+          current: localStorage.getItem('voc_current'),
+          lang: localStorage.getItem('voc_lang') || 'zh-CN'
+        });
+        localStorage.setItem('CSpeakData', js);
+      }
+      return JSON.parse(js);
+    }
+    function saveStore() {
+      localStorage.setItem('CSpeakData', JSON.stringify(store));
+    }
+
+    const store = loadStore();
+    let words = [],
+        currentListId = store.current,
+        currentListName = '',
+        currentLang = store.lang;
+
+    function speak(txt) {
+      const msg = new SpeechSynthesisUtterance(txt);
+      msg.lang = currentLang;
+      speechSynthesis.speak(msg);
+    }
+
+    // helper to download a string as a file
+    function downloadFile(filename, content, mime = 'text/plain') {
+      const blob = new Blob([content], { type: mime + ';charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Save entire CSpeakData to a JSON file
+    document.getElementById('saveFileBtn').onclick = () => {
+      const data = localStorage.getItem('CSpeakData') || '';
+      if (!data) return alert('No data to save.');
+      const ts = new Date().toISOString().replace(/[:\-]/g, '').split('.')[0];
+      downloadFile(`CSpeak_${ts}.json`, data, 'application/json');
+    };
+
+    // Restore from JSON file (merge; do not delete existing lists)
+    document.getElementById('restoreFileBtn').onclick = () => {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'application/json';
+      inp.onchange = e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          let imported;
+          try {
+            imported = JSON.parse(r.result);
+          } catch {
+            return alert('Invalid JSON file.');
+          }
+          if (!imported.lists || typeof imported.lists !== 'object') {
+            return alert('JSON must contain a top-level "lists" object.');
+          }
+          if (!confirm(
+            'This will merge imported lists into your existing data.\n' +
+            'Any imported list with the same ID will replace your version.\n' +
+            'Lists not mentioned in the file will be kept.\n\nProceed?'
+          )) return;
+
+          Object.keys(imported.lists).forEach(id => {
+            store.lists[id] = imported.lists[id];
+          });
+          if (imported.current) store.current = imported.current;
+          if (imported.lang) store.lang = imported.lang;
+          saveStore();
+          alert('Import complete – reloading.');
+          location.reload();
+        };
+        r.readAsText(f);
+      };
+      inp.click();
+    };
+
+    // Export current list as text (hanzi#pinyin#definition)
+    document.getElementById('exportBtn').onclick = () => {
+      if (!currentListId) return alert('No list loaded to export.');
+      const list = store.lists[currentListId];
+      const lines = list.words
+        .map(w => [w.hanzi, w.pinyin, w.definition].filter(Boolean).join('#'))
+        .join('\n');
+      const ts = new Date().toISOString().replace(/[:\-]/g, '').split('.')[0];
+      const safeName = currentListName.replace(/[^a-z0-9]/gi, '_').substr(0, 20);
+      downloadFile(`CSpeak_${safeName}_${ts}.txt`, lines, 'text/plain');
+    };
+
+    function refreshNavSelect() {
+      const sel = document.getElementById('navListSelect');
+      sel.innerHTML = '';
+      Object.keys(store.lists).forEach(id => {
+        const o = document.createElement('option');
+        let lab = store.lists[id].trueName;
+        if (lab.length > 12) lab = lab.slice(0, 12) + '…';
+        o.value = id;
+        o.textContent = lab;
+        if (id === currentListId) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    function loadWordList(id) {
+      const lst = store.lists[id];
+      if (!lst) return false;
+      words = lst.words;
+      currentListName = lst.trueName;
+      currentListId = id;
+      store.current = id;
+      saveStore();
+      return true;
+    }
+
+    function saveWordList(id, name, arr) {
+      store.lists[id] = { trueName: name, words: arr };
+      store.current = id;
+      saveStore();
+      currentListId = id;
+      currentListName = name;
+      words = arr;
+    }
+
+    function deleteWordList(id) {
+      delete store.lists[id];
+      if (store.current === id) {
+        const keys = Object.keys(store.lists);
+        store.current = keys.length ? keys[0] : null;
+      }
+      saveStore();
+    }
+
+    function showLoader() {
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('listName').textContent = '';
+      document.getElementById('app').innerHTML = '';
+    }
+    function closeLoader() {
+      document.getElementById('loader').style.display = 'none';
+      if (currentListId) {
+        document.getElementById('listName').textContent = 'List: ' + currentListName;
+        render();
+      }
+    }
+    function showApp() {
+      closeLoader();
+      location.hash = '#/cards';
+    }
+
+    function renameList() {
+      if (!currentListId) return;
+      const n = prompt('New name:', currentListName);
+      if (!n) return;
+      store.lists[currentListId].trueName = n;
+      currentListName = n;
+      saveStore();
+      refreshNavSelect();
+      document.getElementById('listName').textContent = 'List: ' + n;
+    }
+
+    function confirmDelete() {
+      if (!currentListId) return;
+      if (!confirm(`Delete list "${currentListName}"?`)) return;
+      deleteWordList(currentListId);
+      refreshNavSelect();
+      if (store.current) {
+        loadWordList(store.current);
+        document.getElementById('listName').textContent = 'List: ' + currentListName;
+        showApp();
+      } else {
+        showLoader();
+      }
+    }
+
+    window.onload = () => {
+      // populate language select
+      const langSel = document.getElementById('langSelect');
+      availableLanguages.forEach(lang => {
+        const opt = document.createElement('option');
+        opt.value = lang.code;
+        opt.textContent = lang.label;
+        if (!lang.code) opt.disabled = true;
+        langSel.appendChild(opt);
+      });
+      langSel.value = currentLang;
+      langSel.onchange = () => {
+        currentLang = langSel.value;
+        store.lang = currentLang;
+        saveStore();
+      };
+
+      // menu toggle & ESC
+      const menuBtn = document.getElementById('menuBtn'),
+            menu    = document.getElementById('menuDropdown');
+      menuBtn.onclick = () => menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      document.addEventListener('click', e => {
+        if (!menu.contains(e.target) && e.target !== menuBtn) menu.style.display = 'none';
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          if (menu.style.display === 'block') menu.style.display = 'none';
+          if (document.getElementById('loader').style.display !== 'none') closeLoader();
+        }
+      });
+
+      document.getElementById('loadNewBtn').onclick = () => { showLoader(); menu.style.display = 'none'; document.querySelector('input[value="new"]').checked = true; };
+      document.getElementById('renameBtn').onclick  = () => { renameList(); menu.style.display = 'none'; };
+      document.getElementById('deleteBtn').onclick  = () => { confirmDelete(); menu.style.display = 'none'; };
+
+      document.getElementById('loadBtn').onclick = () => {
+        const mode = document.querySelector('input[name="loadMode"]:checked').value;
+        const lines = document.getElementById('rawInput').value.trim().split('\n');
+        const parsed = lines
+          .map(l => l.split(/\s*[\t#]\s*/))
+          .filter(p => p.length >= 2)
+          .map(p => ({ hanzi: p[0], pinyin: p[1], definition: p[2] || '', state: 0, open: false }));
+        if (!parsed.length) return alert('No valid lines');
+        if (mode === 'new') {
+          const name = prompt('List name:', 'Vocab ' + new Date().toLocaleString());
+          const id   = Date.now().toString();
+          saveWordList(id, name, parsed);
+        } else {
+          if (!currentListId) return alert('No list loaded');
+          parsed.forEach(it => it.open = false);
+          words = words.concat(parsed);
+          saveWordList(currentListId, currentListName, words);
+        }
+        refreshNavSelect();
+        showApp();
+      };
+
+      document.getElementById('navListSelect').onchange = e => {
+        const id = e.target.value;
+        if (loadWordList(id)) {
+          refreshNavSelect();
+          document.getElementById('listName').textContent = 'List: ' + currentListName;
+          showApp();
+        }
+      };
+
+      document.getElementById('closeLoader').onclick = closeLoader;
+
+      refreshNavSelect();
+      if (currentListId && loadWordList(currentListId)) {
+        document.getElementById('listName').textContent = 'List: ' + currentListName;
+        showApp();
+      } else {
+        showLoader();
+      }
+
+      window.onhashchange = render;
+    };
+
+    function render() {
+      const app = document.getElementById('app'),
+            r   = location.hash.replace('#', '') || '/cards';
+      app.innerHTML = '';
+
+      if (r === '/cards') {
+        words.forEach((w, i) => {
+          const c = document.createElement('div');
+          c.className = 'card' + (w.open ? ' flipped' : '');
+          if (w.open) {
+            c.innerHTML = `
+              <span class="card-number">${i+1}.</span>
+              <span class="hanzi clickable">${w.hanzi}</span>
+              <button class="toggle-btn">▼</button><br>
+              <em>${w.pinyin}</em>${w.definition ? `<br><small>${w.definition}</small>` : ''}`;
+          } else {
+            c.innerHTML = `
+              <span class="card-number">${i+1}.</span>
+              <span class="hanzi clickable">${w.hanzi}</span>
+              <button class="toggle-btn">▶</button>`;
+          }
+          c.onclick = e => {
+            if (e.target.classList.contains('toggle-btn')) {
+              w.open = !w.open;
+              store.lists[currentListId].words = words;
+              saveStore();
+              render();
+              speak(w.hanzi);
+            } else {
+              speak(w.hanzi);
+            }
+          };
+          app.appendChild(c);
+        });
+
+      } else if (r === '/quiz') {
+        const i = Math.floor(Math.random() * words.length),
+              w = words[i];
+        app.innerHTML = `
+          <div class="card flipped">
+            ${i+1}. <span class="hanzi clickable">${w.hanzi}</span><br>
+            <em>${w.pinyin}</em>${w.definition ? `<br><small>${w.definition}</small>` : ''}
+          </div>
+          <p>Did you recall?</p>
+          <button id="yesBtn">Yes</button>
+          <button id="noBtn">No</button>`;
+        // pronounce when clicking the quiz card itself
+        document.querySelector('.card').onclick = () => speak(w.hanzi);
+        document.getElementById('yesBtn').onclick = () => { updateScore(i, 1); render(); };
+        document.getElementById('noBtn').onclick  = () => { updateScore(i, -1); render(); };
+      }
+    }
+
+    function updateScore(i, d) {
+      let s = words[i].state || 0;
+      s = Math.max(0, Math.min(3, s + d));
+      words[i].state = s;
+      store.lists[currentListId].words = words;
+      saveStore();
+    }
+  </script>
+</body>
+</html>
