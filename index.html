@@ -1,173 +1,265 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-
-  <!--**********************************************************************************************************-->
-  <!--************************************************ cSpeak **************************************************-->
-  <!--******************************************** Version 1.00 ************************************************-->
-  <!--******************************************** July 2, 2025 ************************************************-->
-  <!--**********************************************************************************************************-->
-  <!-------------------------------------------------------------------------------------------------------------->
-  <!------------------------------------ Code by: Bernd Sebastian Kamps ------------------------------------------>
-  <!-------------------------------------------------------------------------------------------------------------->
-  <!-- Description: cSpeak is a single-page web application designed for studying vocabulary in any language.   -->
-  <!-- After loading a list of entries separated by # or TAB (two columns for most languages; three columns     -->
-  <!-- for Chinese—Hanzi, Pinyin, and translation), each entry appears as a numbered card displaying only the   -->
-  <!-- word or phrase in your target language. An arrow in the corner toggles the card open or closed to reveal -->
-  <!-- or hide the definition. Every time you toggle, the word’s pronunciation plays. Clicking anywhere else on -->
-  <!-- the card simply pronounces the word without changing its open state. You can manage multiple vocabulary  -->
-  <!-- lists via the dropdown menu, switch speech languages in the ☰ menu, and save, restore, or export your    -->
-  <!-- data. All of this is backed by localStorage.                                                             -->
-  <!--**********************************************************************************************************-->
-  <!-- Repository: https://github.com/bsk54/cSpeak.git ----------------------------------------------------------->
-  <!-- Web site:   https://aiopop.com/cSpeak --------------------------------------------------------------------->
-  <!--**********************************************************************************************************-->
-
+  <!--***********************************************************************************************************-->
+  <!--********************************************** VocaVibe ***************************************************-->
+  <!--******************************************** Version 1.00 *************************************************-->
+  <!--******************************************** July 2, 2025 *************************************************-->
+  <!--***********************************************************************************************************-->
+  <!--------------------------------------------------------------------------------------------------------------->
+  <!------------------------------------ Code by: Bernd Sebastian Kamps ------------------------------------------->
+  <!--------------------------------------------------------------------------------------------------------------->
+  <!-- Description: VocaVibe is a single-page web application designed for studying vocabulary in any language.  -->
+  <!-- After loading a list of entries separated by # or TAB (two columns for most languages; three columns      -->
+  <!-- for Chinese—Hanzi, Pinyin, and translation), each entry appears as a numbered card displaying only the    -->
+  <!-- word or phrase in your target language. An arrow in the corner toggles the card open or closed to reveal  -->
+  <!-- or hide the definition. Every time you toggle, the word’s pronunciation plays. Clicking anywhere else on  -->
+  <!-- the card simply pronounces the word without changing its open state. You can manage multiple vocabulary   -->
+  <!-- lists via the dropdown menu, switch speech languages in the ☰ menu, and save, restore, or export your     -->
+  <!-- data. All of this is backed by localStorage.                                                              -->
+  <!--***********************************************************************************************************-->
+  <!-- Repository: https://github.com/bsk54/VocaVibe.git ---------------------------------------------------------->  
+  <!-- Web site:   https://aiopop.com/VocaVibe -------------------------------------------------------------------->  
+  <!--***********************************************************************************************************-->
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>cSpeak</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VocaVibe</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
-    /* —— adjustable variables —— */
+
+    /* —— Palette inspired by tone‐block colors —— */
     :root {
-      --card-padding: 3px;
-      --space-hanzi-pinyin: 0.2rem;
-      --space-pinyin-def: 0.25rem;
-      --font-hanzi-size: 1.4rem;
-      --font-hanzi-color: #2c3e50;
-      --font-pinyin-size: 1rem;
-      --font-pinyin-color: #7f8c8d;
-      --font-def-size: 0.875rem;
-      --font-def-color: #95a5a6;
-      --card-gap: 0.5rem;    /* distance between each card */
-      --card-num-font-size: .7rem;
-      --card-num-color: #555;
-      --card-num-margin-right: 0.5rem;
+      --tone1: #FF4C4C;
+      --tone2: #FFC107;
+      --tone3: #2196F3;
+      --tone4: #4CAF50;
+      --bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-main: #2c3e50;
+      --text-sub: #7f8c8d;
+      --shadow: rgba(0,0,0,0.1);
+      --spacing: 0.5rem;
     }
 
-    body { font-family: 'Montserrat', sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: #333; }
-    .container { max-width: 600px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: visible !important; }
-    header, nav { background: #4a90e2; color: #fff; }
-    header { padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: 600; }
-    nav { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; position: relative; }
-    nav a { color: #fff; font-weight: 500; text-decoration: none; margin-right: 0.5rem; }
-    nav a:hover { background: rgba(255,255,255,0.2); border-radius: 4px; padding: 0.25rem; }
-    #navListSelect { margin-left: 1rem; padding: 0.25rem; border-radius: 4px; border: none; max-width: 150px; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text-main);
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px var(--shadow);
+      overflow: hidden;
+    }
 
-    .menu-btn { font-size: 1.5rem; cursor: pointer; border: none; background: none; color: #fff; }
+    header {
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 600;
+      /* rainbow gradient */
+      background: linear-gradient(90deg,
+        var(--tone1) 0%, var(--tone2) 25%,
+        var(--tone3) 50%, var(--tone4) 75%);
+      color: #fff;
+    }
+
+    nav {
+      position: relative;       /* ← enable absolute dropdown positioning */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: var(--tone3);
+    }
+    nav a {
+      color: #fff;
+      font-weight: 500;
+      text-decoration: none;
+      margin-right: 0.5rem;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    #navListSelect {
+      margin-left: 1rem;
+      padding: 0.25rem;
+      border-radius: 4px;
+      border: none;
+    }
+    .menu-btn {
+      font-size: 1.4rem;
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
     .menu-dropdown {
       position: absolute;
       top: 100%;
       right: 1rem;
       width: 200px;
-      padding: 0.5rem;
       background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      max-height: 80vh !important;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--shadow);
+      max-height: 70vh;
       overflow-y: auto;
-      z-index: 10;
+      padding: 0.5rem;
+      display: none;
+      z-index: 1000;            /* ← keep it on top */
     }
     .menu-dropdown button,
     .menu-dropdown select {
-      display: block;
       width: 100%;
-      margin-bottom: 0.5rem;
       background: none;
       border: none;
       text-align: left;
+      padding: 0.5rem 0.25rem;
       cursor: pointer;
       font-size: 1rem;
-      padding: 0.25rem 0;
     }
-    .menu-dropdown button:hover,
-    .menu-dropdown select:focus { background: #f0f0f0; }
-    .menu-dropdown select { padding: 0.25rem; border: 1px solid #ccc; border-radius: 4px; }
     .menu-dropdown hr {
       border: none;
-      border-top: 1px solid #ddd;
+      border-top: 1px solid #eee;
       margin: 0.5rem 0;
     }
+    .menu-dropdown button:hover,
+    .menu-dropdown select:focus {
+      background: var(--tone2);
+      color: #fff;
+      border-radius: 4px;
+    }
 
-    #loader { padding: 1.5rem; position: relative; }
-    #rawInput { width: 100%; height: 120px; box-sizing: border-box; padding: 0.75rem; font-family: monospace; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
-    button.main-action, #closeLoader { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 4px; background: #4a90e2; color: #fff; transition: background 0.2s; }
-    button.main-action:hover, #closeLoader:hover { background: #357ab8; }
+    #loader {
+      padding: 1.5rem;
+      position: relative;
+      background: var(--card-bg);
+    }
+    #closeLoader {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: transparent;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+    }
+    #rawInput {
+      width: 100%;
+      height: 120px;
+      padding: 0.75rem;
+      font-family: monospace;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+      margin-bottom: 1rem;
+    }
+    button.main-action {
+      padding: 0.5rem 1rem;
+      background: var(--tone1);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button.main-action:hover {
+      background: var(--tone4);
+    }
+    .radio-group {
+      margin-bottom: 1rem;
+    }
+    .radio-group label {
+      margin-right: 1rem;
+      font-weight: 500;
+    }
 
-    .radio-group { margin-bottom: 1rem; }
-    .radio-group label { margin-right: 1rem; font-weight: 500; }
-
-    #listName { padding: 1rem; font-size: 1.2rem; font-weight: 500; border-bottom: 1px solid #eee; background: #fafafa; }
-    main { padding: 1rem; }
+    #listName {
+      padding: 1rem;
+      font-size: 1.2rem;
+      font-weight: 500;
+      background: #fafafa;
+      border-bottom: 1px solid #eee;
+    }
+    main {
+      padding: 1rem;
+    }
 
     .card {
-      background: #fff;
-      border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-      padding: var(--card-padding);
-      margin-bottom: var(--card-gap);
-      cursor: pointer;
-      transition: transform 0.1s;
       position: relative;
+      background: var(--card-bg);
+      border-left: 6px solid var(--tone1);
+      box-shadow: 0 2px 8px var(--shadow);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: var(--spacing);
+      transition: transform 0.2s;
+      cursor: pointer;
     }
-    .card:hover { transform: translateY(-2px); }
-    .card.flipped { background: #f9f9f9; }
+    .card:hover {
+      transform: translateY(-2px);
+    }
+    /* cycle border colors */
+    .card:nth-child(4n+1) { border-color: var(--tone1); }
+    .card:nth-child(4n+2) { border-color: var(--tone2); }
+    .card:nth-child(4n+3) { border-color: var(--tone3); }
+    .card:nth-child(4n)   { border-color: var(--tone4); }
 
-    .hanzi {
-      font-size: var(--font-hanzi-size);
-      color: var(--font-hanzi-color);
-      display: inline-block;
+    .card-number {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      margin-right: 0.5rem;
       vertical-align: middle;
     }
-
+    .hanzi {
+      font-size: 1.6rem;
+      color: var(--text-main);
+      vertical-align: middle;
+    }
     .card em {
       display: block;
-      margin-top: var(--space-hanzi-pinyin);
-      font-size: var(--font-pinyin-size);
-      color: var(--font-pinyin-color);
-      font-style: normal;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      color: var(--text-sub);
     }
-
     .card small {
       display: block;
-      margin-top: var(--space-pinyin-def);
-      font-size: var(--font-def-size);
-      color: var(--font-def-color);
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+      color: #888;
     }
 
     .toggle-btn {
       position: absolute;
-      top: .1rem;
+      top: 0.75rem;
       right: 1rem;
       width: 30px;
       height: 30px;
       background: #fff;
       border-radius: 4px;
-      border: 1px solid #ccc;
+      border: 1px solid var(--text-sub);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: .8rem;
-      color: #4a90e2;
-      cursor: pointer;
+      font-size: 1.2rem;
+      color: var(--text-sub);
+      transition: background 0.2s, color 0.2s;
     }
-    .toggle-btn:hover { background: #f0f0f0; }
-
-    #closeLoader { position: absolute; top: 1rem; right: 1rem; background: transparent; color: #333; border: 1px solid #ccc; }
-    #closeLoader:hover { background: #ccc; color: #000; }
-
-    .card-number {
-      font-size: var(--card-num-font-size);
-      color: var(--card-num-color);
-      margin-right: var(--card-num-margin-right);
-      vertical-align: middle;
+    .toggle-btn:hover {
+      background: var(--text-sub);
+      color: #fff;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>cSpeak</header>
+    <header>VocaVibe</header>
 
     <section id="loader">
       <button id="closeLoader">Close</button>
@@ -184,7 +276,6 @@
     <nav>
       <div>
         <a href="#/cards">Cards</a>
-        <a href="#/quiz">Quiz</a>
         <select id="navListSelect"></select>
       </div>
       <button class="menu-btn" id="menuBtn">☰</button>
@@ -526,60 +617,35 @@
             r   = location.hash.replace('#', '') || '/cards';
       app.innerHTML = '';
 
-      if (r === '/cards') {
-        words.forEach((w, i) => {
-          const c = document.createElement('div');
-          c.className = 'card' + (w.open ? ' flipped' : '');
-          if (w.open) {
-            c.innerHTML = `
-              <span class="card-number">${i+1}.</span>
-              <span class="hanzi clickable">${w.hanzi}</span>
-              <button class="toggle-btn">▼</button><br>
-              <em>${w.pinyin}</em>${w.definition ? `<br><small>${w.definition}</small>` : ''}`;
+      // Only cards view remains
+      words.forEach((w, i) => {
+        const c = document.createElement('div');
+        c.className = 'card' + (w.open ? ' flipped' : '');
+        if (w.open) {
+          c.innerHTML = `
+            <span class="card-number">${i+1}.</span>
+            <span class="hanzi clickable">${w.hanzi}</span>
+            <button class="toggle-btn">▼</button><br>
+            <em>${w.pinyin}</em>${w.definition ? `<br><small>${w.definition}</small>` : ''}`;
+        } else {
+          c.innerHTML = `
+            <span class="card-number">${i+1}.</span>
+            <span class="hanzi clickable">${w.hanzi}</span>
+            <button class="toggle-btn">▶</button>`;
+        }
+        c.onclick = e => {
+          if (e.target.classList.contains('toggle-btn')) {
+            w.open = !w.open;
+            store.lists[currentListId].words = words;
+            saveStore();
+            render();
+            speak(w.hanzi);
           } else {
-            c.innerHTML = `
-              <span class="card-number">${i+1}.</span>
-              <span class="hanzi clickable">${w.hanzi}</span>
-              <button class="toggle-btn">▶</button>`;
+            speak(w.hanzi);
           }
-          c.onclick = e => {
-            if (e.target.classList.contains('toggle-btn')) {
-              w.open = !w.open;
-              store.lists[currentListId].words = words;
-              saveStore();
-              render();
-              speak(w.hanzi);
-            } else {
-              speak(w.hanzi);
-            }
-          };
-          app.appendChild(c);
-        });
-
-      } else if (r === '/quiz') {
-        const i = Math.floor(Math.random() * words.length),
-              w = words[i];
-        app.innerHTML = `
-          <div class="card flipped">
-            ${i+1}. <span class="hanzi clickable">${w.hanzi}</span><br>
-            <em>${w.pinyin}</em>${w.definition ? `<br><small>${w.definition}</small>` : ''}
-          </div>
-          <p>Did you recall?</p>
-          <button id="yesBtn">Yes</button>
-          <button id="noBtn">No</button>`;
-        // pronounce when clicking the quiz card itself
-        document.querySelector('.card').onclick = () => speak(w.hanzi);
-        document.getElementById('yesBtn').onclick = () => { updateScore(i, 1); render(); };
-        document.getElementById('noBtn').onclick  = () => { updateScore(i, -1); render(); };
-      }
-    }
-
-    function updateScore(i, d) {
-      let s = words[i].state || 0;
-      s = Math.max(0, Math.min(3, s + d));
-      words[i].state = s;
-      store.lists[currentListId].words = words;
-      saveStore();
+        };
+        app.appendChild(c);
+      });
     }
   </script>
 </body>
